@@ -4,14 +4,23 @@
 #include <array>
 #include <fstream>
 #include <string_view>
+#include <iostream>
 
 using namespace std;
 
-namespace img_lib {
-// функция вычисления отступа по ширине
-static int GetBMPStride(int w) {
-  return 4 * ((w * 3 + 3) / 4);
+namespace {
+  /* В BMP отступ равен ширине, умноженной на три и округлённой вверх до числа,
+   * делящегося на четыре. */
+  int GetBMPStride(int w) {
+    constexpr unsigned kBMPOffset = 3;
+    constexpr unsigned kBMPmultiple = 4;
+    constexpr unsigned kLeftSideOffset = kBMPOffset;
+    constexpr unsigned kRightSideOffset = kBMPOffset;
+    return kBMPmultiple * ((w * kLeftSideOffset + kRightSideOffset) / kBMPmultiple);
+  }
 }
+
+namespace img_lib {
 
 PACKED_STRUCT_BEGIN BitmapInfoHeader {
   BitmapInfoHeader() = default;
@@ -153,6 +162,11 @@ Image LoadBMP(const Path &file) {
 
   ifstream ifs(file, ios::binary);
   ifs >> header >> info;
+  if (ifs.bad()) {
+    std::cout << "I/O error while reading\n";
+    return {};
+  }
+
 
   if (!CheckLoadImageOnBGR24(header, info)) {
     return {};
@@ -167,6 +181,10 @@ Image LoadBMP(const Path &file) {
   for (int y = h - 1; y >= 0; --y) {
     std::vector<char> buff(w_strided);
     ifs.read(buff.data(), w_strided);
+    if (ifs.bad()) {
+      std::cout << "I/O error while reading\n";
+      return {};
+    }
 
     Color *line = result.GetLine(y);
     for (int x = 0; x < w; ++x) {
